@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-declare -r DIR=$(cd "$(dirname "$0")" && pwd)
-source $DIR/lib/bsfl.sh
-source $DIR/lib/ext_bsfl.sh
+declare -r DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "$DIR/lib/bsfl.sh"
+source "$DIR/lib/ext_bsfl.sh"
 
 
 declare -x LOG_ENABLED="yes"
@@ -11,9 +11,21 @@ declare -x TMPDIR="$DIR/../tmp"
 declare -r TRUE=0
 declare -r FALSE=1
 
+cd "$DIR"
+export SSH_PORT=$(./getcfg.sh ssh_port)
+cd - > /dev/null
+
+ssh() {
+    /usr/bin/ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$@"
+}
+
+scp() {
+    /usr/bin/scp -o StrictHostKeyChecking=no -P "$SSH_PORT" "$@"
+}
+
 #mkdir for temporary files used by autodg.
-if [ ! -d $TMPDIR ]; then
-  mkdir $TMPDIR
+if [ ! -d "$TMPDIR" ]; then
+  mkdir "$TMPDIR"
 fi
 
 ####if not ends with / , output == ""
@@ -22,16 +34,16 @@ check_path_ends_with_slash() {
   local parafile=$1
 
   #use sed to check if line end with / . / must be removed.
-  slashline=$(sed -n '/\/$/p' $parafile)
-#  echo $slashline
+  slashline=$(sed -n '/\/$/p' "$parafile")
+  echo "$slashline"
 }
 
 #### input a tmp file name $1, remove empty line and space, output text to a new text file $2.
 get_one_row_data() {
   local tmpfile=$1
-  newfile=$2
-  if file_exists_and_not_empty $tmpfile; then
-    grep -v ^$ $tmpfile |awk '{print $(NF)}' > $newfile
+  local newfile=$2
+  if file_exists_and_not_empty "$tmpfile"; then
+    grep -v ^$ "$tmpfile" |awk '{print $(NF)}' > "$newfile"
 #    cat $newfile
   else
     echo ""
@@ -42,9 +54,9 @@ get_one_row_data() {
 #### there maybe multiple rows
 get_multiple_row_data() {
   local tmpfile=$1
-  newfile=$2
-  if file_exists_and_not_empty $tmpfile; then
-    sed 's/\(.*\)\/.*/\1/' $tmpfile | sed '/^$/d' |sort -r|uniq > $newfile
+  local newfile=$2
+  if file_exists_and_not_empty "$tmpfile"; then
+    sed 's/\(.*\)\/.*/\1/' "$tmpfile" | sed '/^$/d' |sort -r|uniq > "$newfile"
     #取最后一个\前的所有字符, 最后一个\后的字符舍弃.然后去掉空行, 排序, 去重, 保存到newfile.
 #    cat $newfile
   else
@@ -55,8 +67,8 @@ get_multiple_row_data() {
 #### get diskgroup name from diskgroup filename. such as +data/asp/datafile/system01.dbf. return +data
 get_diskgroup_name() {
   local tmpfile=$1
-  newfile=$2
-  awk -F'/' '{print $1}' $tmpfile | sort -r| uniq |grep -v ^$ > $newfile
+  local newfile=$2
+  awk -F'/' '{print $1}' "$tmpfile" | sort -r| uniq |grep -v ^$ > "$newfile"
 #  cat $newfile
 }
 #convert information from dbinfo to formatted txt file.
@@ -84,38 +96,38 @@ format_dbinfo(){
 #$4  filename, contains dataguard's convert string. '/u02/oradata/orcl','/u03/orddata/orcldg'
 makeup_file_convert() {
   local pri_filename=$1
-  local dg_filepath=$2 
-  pri_convert_path_file=$3
-  dg_convert_path_file=$4
+  local dg_filepath=$2
+  local pri_convert_path_file=$3
+  local dg_convert_path_file=$4
 
-  file_exists_and_not_empty $pri_filename  || return $FALSE
+  file_exists_and_not_empty "$pri_filename"  || return $FALSE
 #  cmd file_exists $pri_filename
   
-  >pri_convert_path_file
-  >dg_convert_path_file
+  >"$pri_convert_path_file"
+  >"$dg_convert_path_file"
   
   #remove duplicate line
 
   begin_str='"'
   middle_str='/","'
   end_str='/",'
-  cat $pri_filename | while read pri_filepath
+  while read -r pri_filepath
   do
     dg_add_path=${begin_str}${pri_filepath}${middle_str}${dg_filepath}${end_str}
-    echo $dg_add_path>>$dg_convert_path_file
+    echo "$dg_add_path" >> "$dg_convert_path_file"
     pri_add_path=${begin_str}${dg_filepath}${middle_str}${pri_filepath}${end_str}
-    echo $pri_add_path>>$pri_convert_path_file
-  done
+    echo "$pri_add_path" >> "$pri_convert_path_file"
+  done < "$pri_filename"
   return $TRUE
 }
 
 # convert from multiple line file into one line file
 # can not put file_exists_and_not_empty in if [] . only call in this way:  file... &&, or  || . 
 makeup_convert_oneline() {
-  file_exists_and_not_empty  $1  || return $FALSE
-  sed -n -e 'H;${x;s/\n//g;p;}' $1 > $2
+  file_exists_and_not_empty  "$1"  || return $FALSE
+  sed -n -e 'H;${x;s/\n//g;p;}' "$1" > "$2"
   #this sed line put all the convert path into oneline. remove the newline characters.
-  sed -i 's/,$//' $2
+  sed -i 's/,$//' "$2"
   #remove the last comma ,
   return $TRUE
 }

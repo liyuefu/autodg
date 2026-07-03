@@ -1,19 +1,26 @@
-oracle_sid=ctp
-oracle_dg_sid=ctpdg
-#如果已经有配置了dg,比如配置了2个dg,把db_unique_name写这里,没有就保持no
-#exist_dg_unique_name_list=testdg1,testdg2
+oracle_sid=orcl
+oracle_dg_sid=orcldg
+#如果已经有配置了dg,
+# 0个,no
+# 1个，orcldg
+# 2个， testdg1,testdb2
 exist_dg_unique_name_list=no
+#exist_dg_unique_name_list=orcldg
+#exist_dg_unique_name_list=testdg1,testdg2
 
+#是否配置dg级联（如果当前库是dg库，那么是级联）
+set_cascade=no
+#set_cascade=yes
 #指定主库使用哪个dest
-pri_log_archive_dest=3
+pri_log_archive_dest=2
 #指定备库使用哪个dest
-dg_log_archive_dest=3
-dg_unique_name=ctpdg
+dg_log_archive_dest=2
+dg_unique_name=orcldg
 oracle_base_pr=/u01/app/oracle
 oracle_home_pr=/u01/app/oracle/product/11.2.0/dbhome_1
 oracle_base_dg=/u01/app/oracle
 oracle_home_dg=/u01/app/oracle/product/11.2.0/dbhome_1
-dgpath=/u02/oradata/ctpdg
+dgpath=/u02/oradata/orcldg
 dgarch=/u02/arch
 dgomf=no
 #dgomf, yes: set db_create_file_dest value to $dgpath , dg will use OMF, no: no set db_create_file_dest.
@@ -29,6 +36,7 @@ fix_datafile_same_name=no
 rman_backup_dir=/u02/rmanbackup
 syspwd=oracle
 setupssh=no
+ssh_port=22
 #fix_datafile_same_name=yes, 用%U统一命名./u03/oradata/ctp/data_D-CTP_TS-SYSTEM_FNO-1; no: 用原来的名字
 #如果文件有重名的,设置为yes
 #duplicate_active: yes(直接用duplicate from active命令从主库duplicate), no(用现有的rman备份也用duplicate命令, rman必须已经复制到备库),

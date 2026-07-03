@@ -1,0 +1,38 @@
+oracle_sid=o19dg
+oracle_dg_sid=o19dg2
+#如果已经有配置了dg,比如配置了1个dg,把db_unique_name写这里,没有就保持no
+#exist_dg_unique_name_list=testdg1,testdg2
+exist_dg_unique_name_list=o19
+
+#是否配置dg级联（如果当前库是dg库，那么是级联）
+set_cascade=yes
+#指定主库使用哪个dest
+pri_log_archive_dest=3
+#指定备库使用哪个dest
+dg_log_archive_dest=3
+dg_unique_name=o19dg2
+oracle_base_pr=/u01/app/oracle
+oracle_home_pr=/u01/app/oracle/product/19c/dbhome_1
+oracle_base_dg=/u01/app/oracle
+oracle_home_dg=/u01/app/oracle/product/19c/dbhome_1
+dgpath=/u02/oradata/o19dg2
+dgarch=/u02/arch
+dgomf=no
+#dgomf, yes: set db_create_file_dest value to $dgpath , dg will use OMF, no: no set db_create_file_dest.
+#如果主库使用OMF,比如rac或者单实例ASM, 备库建议也使用OMF.如果备库是+data,那么肯定要使用OMF,即设置yes.
+
+#从rac到单机时,rac使用搭建使用节点的public ip.
+ippr=192.168.56.92
+ipdg=192.168.56.93
+stagepr=/stage
+stagedg=/stage
+duplicate_active=yes
+fix_datafile_same_name=no
+rman_backup_dir=/u02/rmanbackup
+syspwd=Welcome1_
+setupssh=no
+ssh_port=22
+#fix_datafile_same_name=yes, 用%U统一命名./u03/oradata/ctp/data_D-CTP_TS-SYSTEM_FNO-1; no: 用原来的名字
+#如果文件有重名的,设置为yes
+#duplicate_active: yes(直接用duplicate from active命令从主库duplicate), no(用现有的rman备份也用duplicate命令, rman必须已经复制到备库),
+# rman(新建一个rman备份并复制到备库,用rman restore, recover命令)

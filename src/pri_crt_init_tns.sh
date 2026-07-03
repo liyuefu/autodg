@@ -8,6 +8,8 @@ source ./lib/autodglib.sh
 #update: 2024.04.24. add exist dg support.
 #update: 2024.04.27. 如果主库备库ORACLE_BASE不同,需要在spfile中set audit_file_dest 和 diagnostic_dest. 否则dg库启动失败.
 #update: 2024.05.29. 增加参数 dgomf, 取值yes, 设置 db_create_file_dest,使用OMF.否则不设置.
+#update: 2026.02.07. dup.cmd,当不使用OMF时，设置db_create_file_dest为空字符串''. 否则从RAC 搭建时缺省是'+data',而dg建数据文件有限使用db_create_file_dest这个参数，而不是convert参数。导致建文件失败。
+
 export TMPDIR="$TMPDIR"
 export EXECUTE_DATE=`date +%Y-%m-%d_%H-%M-%S`
 export ORACLE_SID=`./getcfg.sh oracle_sid`
@@ -26,6 +28,7 @@ export DG_LOG_ARCHIVE_DEST="log_archive_dest_"`./getcfg.sh  dg_log_archive_dest`
 export PRI_LOG_ARCHIVE_DEST="log_archive_dest_"`./getcfg.sh  pri_log_archive_dest` #主库向备库传归档日志
 export PRI_LOG_ARCHIVE_DEST_STATE="log_archive_dest_state_"`./getcfg.sh  pri_log_archive_dest` #主库向备库传归档日志
 export EXIST_DG_UNIQUE_NAME_LIST=`./getcfg.sh exist_dg_unique_name_list`
+export SET_CASCADE=`./getcfg.sh set_cascade`
 
 export DGPATH=`./getcfg.sh dgpath`
 export DGARCH=`./getcfg.sh dgarch`
@@ -48,6 +51,15 @@ export TNSNAMES="$TMPDIR/tnsnames.ora"
 export DG_LISTENER="$TMPDIR/listener.ora"
 export DUPCMD="$TMPDIR/dup.cmd"
 export PRI_MODIFY_SQL="$TMPDIR/pri_modify.sql"
+msg_info "cascade: $SET_CASCADE"
+if [ $SET_CASCADE == "no" ]; then
+  # not cascade data guard
+  export PRI_MODIFY_MODEL="pri_modify.model"
+else
+  # cascade data guard
+  export PRI_MODIFY_MODEL="pri_cascade_modify.model"
+fi
+msg_info "pri_modify_model: $PRI_MODIFY_MODEL"
 export LOG_CNT_FILE="$TMPDIR/log_cnt.txt"
 export LOG_MAX_FILE="$TMPDIR/log_max.txt"
 export LOG_SIZE_FILE="$TMPDIR/log_size.txt"
@@ -75,9 +87,13 @@ create_init_file() {
     echo "log_archive_config='dg_config=("$DG_UNIQUE_NAME,$DB_UNIQUE_NAME\)\' >>$INITORA
   else
     echo "log_archive_config='dg_config=(${EXIST_DG_UNIQUE_NAME_LIST},"$DG_UNIQUE_NAME,$DB_UNIQUE_NAME\)\' >>$INITORA
+    if [ ${SET_CASCADE} == "no" ]; then
+      echo "${DG_LOG_ARCHIVE_DEST}='service="$DB_UNIQUE_NAME" lgwr async valid_for=(online_logfiles,primary_role) db_unique_name="$DB_UNIQUE_NAME"'">>$INITORA
+    else
+      echo "${DG_LOG_ARCHIVE_DEST}='service="$DB_UNIQUE_NAME" lgwr async valid_for=(standby_logfiles,standby_role) db_unique_name="$DB_UNIQUE_NAME"'">>$INITORA
+    fi
   fi
   echo "log_archive_dest_1='location="$DGARCH"'" >>$INITORA
-  echo "${DG_LOG_ARCHIVE_DEST}='service="$DB_UNIQUE_NAME" lgwr async valid_for=(online_logfiles,primary_role) db_unique_name="$DB_UNIQUE_NAME"'">>$INITORA
   echo "standby_file_management='auto'">>$INITORA
 
 }
@@ -85,12 +101,17 @@ create_init_file() {
 #create tnsnames.ora 
 create_tnsnames_file() {
 
+  # if exists data guard, append new tnsnames content, otherwise create new tnsnames.ora file
+  if [ ${EXIST_DG_UNIQUE_NAME_LIST} == "no" ] ; then
+		> $TNSNAMES
+	fi 
+
   if [ -z "$DB_DOMAIN" ]; then
-    echo $DB_UNIQUE_NAME" = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPPR")(PORT = 1521))) (CONNECT_DATA = (SERVICE_NAME = "$DB_UNIQUE_NAME")))" >$TNSNAMES
+    echo $DB_UNIQUE_NAME" = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPPR")(PORT = 1521))) (CONNECT_DATA = (SERVICE_NAME = "$DB_UNIQUE_NAME")))" >>$TNSNAMES
     echo $DG_UNIQUE_NAME" = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPDG")(PORT = 1521))) (CONNECT_DATA = (SERVICE_NAME = "$DG_UNIQUE_NAME")))" >>$TNSNAMES
     echo "dup = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPDG")(PORT = 1525))) (CONNECT_DATA = (SERVICE_NAME = "$DG_UNIQUE_NAME")))" >>$TNSNAMES
   else
-    echo $DB_UNIQUE_NAME" = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPPR")(PORT = 1521))) (CONNECT_DATA = (SERVICE_NAME = "$DB_UNIQUE_NAME.$DB_DOMAIN")))" >$TNSNAMES
+    echo $DB_UNIQUE_NAME" = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPPR")(PORT = 1521))) (CONNECT_DATA = (SERVICE_NAME = "$DB_UNIQUE_NAME.$DB_DOMAIN")))" >>$TNSNAMES
     echo $DG_UNIQUE_NAME" = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPDG")(PORT = 1521))) (CONNECT_DATA = (SERVICE_NAME = "$DG_UNIQUE_NAME.$DB_DOMAIN")))" >>$TNSNAMES
     echo "dup = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = "$IPDG")(PORT = 1525))) (CONNECT_DATA = (SERVICE_NAME = "$DG_UNIQUE_NAME")))" >>$TNSNAMES
   fi
@@ -173,7 +194,11 @@ create_dup_cmd() {
   if [ $DGOMF == "yes" ]; then
     echo "  set db_create_file_dest='"$DGPATH"'">>$DUPCMD
     echo "  set db_create_online_log_dest_1='"$DGPATH"'" >>$DUPCMD
+  else
+    echo "  set db_create_file_dest='""'">>$DUPCMD
+    echo "  set db_create_online_log_dest_1='""'" >>$DUPCMD
   fi
+
   echo "  set log_archive_dest_1='location="$DGARCH"'" >>$DUPCMD
   echo "  set $DG_LOG_ARCHIVE_DEST='service="$DB_UNIQUE_NAME" lgwr async valid_for=(online_logfiles,primary_role) db_unique_name="$DB_UNIQUE_NAME"'">>$DUPCMD
   echo "  set log_archive_dest_1='location="$DGARCH"'" >>$DUPCMD
@@ -288,26 +313,37 @@ EOF
 }
 
 
-backup_and_update_tnsnames_file() {
+backup_and_update_pri_tnsnames_file() {
   #backup old tnsnames.ora
   if  [ -f $ORACLE_HOME/network/admin/tnsnames.ora ];then
-    mv $ORACLE_HOME/network/admin/tnsnames.ora  $ORACLE_HOME/network/admin/"$EXECUTE_DATE".tnsnames.ora
+    cp $ORACLE_HOME/network/admin/tnsnames.ora  $ORACLE_HOME/network/admin/"$EXECUTE_DATE".tnsnames.ora
   fi
-  #update tnsnames.ora
-  cp $TNSNAMES $ORACLE_HOME/network/admin
+
+  # if cascade, remove dup item, and append to the old tnsnames.ora of $TMPDIR/tnsnames.ora
+  if  [ $SET_CASCADE == "yes" ]; then
+    sed -i '/^dup/d' $ORACLE_HOME/network/admin/tnsnames.ora
+    cat $TNSNAMES >> $ORACLE_HOME/network/admin/tnsnames.ora
+  else
+  # otherwise just use new tnsnames.ora
+    cp $TNSNAMES $ORACLE_HOME/network/admin
+  fi
 }
 
 create_pri_modify_sql() {
-  sed -e "s/primarydb/$DB_UNIQUE_NAME/g"  -e "s/dataguarddb/$DG_UNIQUE_NAME/g" pri_modify.model -e "s/prilogarchivedeststate/$PRI_LOG_ARCHIVE_DEST_STATE/g" -e "s/prilogarchivedest/$PRI_LOG_ARCHIVE_DEST/g" > $PRI_MODIFY_SQL
+  sed -e "s/primarydb/$DB_UNIQUE_NAME/g"  -e "s/dataguarddb/$DG_UNIQUE_NAME/g" -e "s/prilogarchivedeststate/$PRI_LOG_ARCHIVE_DEST_STATE/g" -e "s/prilogarchivedest/$PRI_LOG_ARCHIVE_DEST/g" $PRI_MODIFY_MODEL > $PRI_MODIFY_SQL
 
   #log_archive_config must be set before dest.cause it will check the db_unique_name to be in log_archive_config.
   if [ ${EXIST_DG_UNIQUE_NAME_LIST} != "no" ] ; then
     #remove the old line of log_archive_config
-    sed -i.bak "/dg_config/d" $PRI_MODIFY_SQL
-  #put the alter system set log_archiv_config the first line.
-    echo "alter system set log_archive_config='dg_config=(${EXIST_DG_UNIQUE_NAME_LIST},"$DG_UNIQUE_NAME,$DB_UNIQUE_NAME\)"';" | cat $TMPDIR/- $PRI_MODIFY_SQL  > temp && mv temp $PRI_MODIFY_SQL
-
+		msg_info "with existing dg_config, ${EXIST_DG_UNIQUE_NAME_LIST}"
+		sed -i.bak "s/dg_config=\([^<]*\)/dg_config=\(${EXIST_DG_UNIQUE_NAME_LIST},$DG_UNIQUE_NAME,$DB_UNIQUE_NAME\)';/" $PRI_MODIFY_SQL
   fi
+
+  #for cascade config, NO change the fal_server and fal_client.
+  if [ ${SET_CASCADE} == "yes" ]; then
+    sed -i.bak2 -e "/fal_server/d" -e "/fal_client/d" $PRI_MODIFY_SQL
+  fi
+
 
   #主库设置name convert
   SETDBPATH="alter system set db_file_name_convert= $PRI_NAMECONVERT sid='*' scope=spfile;" 
@@ -351,6 +387,6 @@ create_tnsnames_file
 create_listener_file
 create_dup_cmd
 create_pri_add_standbylog_sql
-backup_and_update_tnsnames_file
+backup_and_update_pri_tnsnames_file
 create_pri_modify_sql
 

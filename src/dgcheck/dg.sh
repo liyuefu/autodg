@@ -1,6 +1,6 @@
 #!/bin/bash
 source /home/oracle/.bash_profile
-CHECK_HOME=/home/oracle/autodg/tmp
+CHECK_HOME=/home/oracle/autodg/dgcheck
 cat > $CHECK_HOME/dg.sql <<EOF
 set pagesize 9999
 set linesize 120

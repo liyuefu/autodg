@@ -7,7 +7,10 @@
 #update: 2022.04.21
 
 
-MONITOR_HOME=/home/oracle/autodg/dgmonitor
+MONITOR_HOME=/home/oracle/autodg/src/dgmonitor
+SSH_PORT=`cd $MONITOR_HOME/..;./getcfg.sh ssh_port`
+ssh() { /usr/bin/ssh -o StrictHostKeyChecking=no -p $SSH_PORT "$@"; }
+scp() { /usr/bin/scp -o StrictHostKeyChecking=no -P $SSH_PORT "$@"; }
 
 if [ -z $1 ];then
 	echo "USAGE:DG_hostname OR DG_IP"
@@ -35,7 +38,8 @@ chmod +x checknoarch.sh
 chmod +x checknoapplied.sh
 chmod +x check_max_applied.sh
 
-chmod +x $MONITOR_HOME/../dgcheck/*.sh
+#chmod +x $MONITOR_HOME/../dgcheck/*.sh
+chmod +x *.sh
 
 primary=`hostname`
 standby=$1
@@ -151,7 +155,7 @@ if  [ "$str" -ge 0 ] 2>/dev/null;then
   echo $noapplied
   if [  $noapplied -gt $warningnum ];then
     rundgcheck='y'
-    log="NOT APPLIED LOGS :$noapplied, is more than $warningnum, please run dgcheck/dgcheck.sh and check pri.out, dg.out." 
+    log="NOT APPLIED LOGS :$noapplied, is more than $warningnum, please run dgcheck.sh and check pri.out, dg.out." 
     echo `date +"%Y-%m-%d %H:%M:%S"`  $standby $log>>$v_datetime
     echo `date +"%Y-%m-%d %H:%M:%S"`  $standby $log>>$monitorlog
   fi
@@ -170,6 +174,7 @@ echo `date +"%Y-%m-%d %H:%M:%S"`  $standby $log>>$monitorlog
 echo $rundgcheck
 if [ $rundgcheck == 'y' ];then
   echo "now run dgcheck.sh ######"
-  $MONITOR_HOME/../dgcheck/dgcheck.sh $standby
+  #$MONITOR_HOME/../dgcheck/dgcheck.sh $standby
+  $MONITOR_HOME/dgcheck.sh $standby
 fi
 rm -rf $MONITOR_HOME/"$standby"_apply.txt

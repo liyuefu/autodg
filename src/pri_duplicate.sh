@@ -20,6 +20,8 @@ export TODAY=`date +%Y-%m-%d_%H-%M-%S`
 
 export SYSPWD=`./getcfg.sh syspwd`
 #export DG_UNIQUE_NAME=`./getcfg.sh dg_unique_name`
+export SSH_PORT=`./getcfg.sh ssh_port`
+
 
 BAK_NET_CONF_FILE=$TMPDIR/back_net_conf.sh
 source ./lib/autodglib.sh
@@ -38,38 +40,38 @@ backup_net_config() {
   echo "fi" >>$BAK_NET_CONF_FILE
   chmod +x $BAK_NET_CONF_FILE
   msg_info "Create back_net_conf.sh and scp to $IPDG and run it."
-  scp $BAK_NET_CONF_FILE $IPDG:/home/oracle/autodg/tmp
-  ssh $IPDG -t "cd /home/oracle/autodg/tmp;./back_net_conf.sh;mv ./back_net_conf.sh ./back_net_conf_${TODAY}.sh"
+  scp "$BAK_NET_CONF_FILE" "$IPDG:/home/oracle/autodg/tmp"
+  ssh "$IPDG" -t "cd /home/oracle/autodg/tmp;./back_net_conf.sh;mv ./back_net_conf.sh ./back_net_conf_${TODAY}.sh"
 }
 
 copy_init_net_config() {
   msg_info "Primary copy  init.ora orapw ,tnsnames.ora, listener.ora to $IPDG" 
 
-  scp $TMPDIR/init$ORACLE_DG_SID.ora  $IPDG:$ORACLE_HOME_DG/dbs/init$ORACLE_DG_SID.ora
-  scp $ORACLE_HOME/dbs/orapw$ORACLE_SID $IPDG:$ORACLE_HOME_DG/dbs/orapw$ORACLE_DG_SID
+  scp "$TMPDIR/init$ORACLE_DG_SID.ora" "$IPDG:$ORACLE_HOME_DG/dbs/init$ORACLE_DG_SID.ora"
+  scp "$ORACLE_HOME/dbs/orapw$ORACLE_SID" "$IPDG:$ORACLE_HOME_DG/dbs/orapw$ORACLE_DG_SID"
   #把连接符文件,侦听文件复制到备库
-  scp $TMPDIR/tnsnames.ora  $IPDG:$ORACLE_HOME_DG/network/admin/tnsnames.ora
-  scp $TMPDIR/listener.ora  $IPDG:$ORACLE_HOME_DG/network/admin/listener.ora
-  scp $TMPDIR/dg_crt_standbylog.sql  $IPDG:/home/oracle/autodg/src
+  scp "$TMPDIR/tnsnames.ora" "$IPDG:$ORACLE_HOME_DG/network/admin/tnsnames.ora"
+  scp "$TMPDIR/listener.ora" "$IPDG:$ORACLE_HOME_DG/network/admin/listener.ora"
+  scp "$TMPDIR/dg_crt_standbylog.sql" "$IPDG:/home/oracle/autodg/src"
 }
 startup_nomount_dg() {
   #startup database nomount
   msg_info  "Standby startup database nomount"
   #备库启动到nomount
-  ssh oracle@$IPDG -t "cd /home/oracle/autodg/src;./dg_nomount.sh" >/dev/null 2>&1
+  ssh "oracle@$IPDG" -t "cd /home/oracle/autodg/src;./dg_nomount.sh" >/dev/null 2>&1
 
 }
 
 run_duplicate() {
   #用duplicate命令搭建dg库
-  if [ $DUPLICATE_ACTIVE == "yes" ]; then
+  if [ "$DUPLICATE_ACTIVE" = "yes" ]; then
   #从主库直接复制.需要连接主库.会耗用主库的资源,包括IO,网络.
     msg_info "Primary start rman duplicate from activate database, tailf dup.log for details"
-    $ORACLE_HOME/bin/rman target  sys/"$SYSPWD" auxiliary sys/"$SYSPWD"@dup cmdfile=$TMPDIR/dup.cmd log=$TMPDIR/dup.log 
+    "$ORACLE_HOME/bin/rman" target  sys/"$SYSPWD" auxiliary sys/"$SYSPWD"@dup cmdfile="$TMPDIR/dup.cmd" log="$TMPDIR/dup.log"
   else
   #从主库已经做好的rman备份做duplicate. 不连接主库,不消耗主库的任何资源.需要在备库已经有rman备份,而且目录和主库相同.
     msg_info "Primary start rman duplicate from rman backup, tailf dup.log for details"
-    $ORACLE_HOME/bin/rman auxiliary sys/"$SYSPWD"@dup cmdfile=$TMPDIR/dup.cmd log=$TMPDIR/dup.log 
+    "$ORACLE_HOME/bin/rman" auxiliary sys/"$SYSPWD"@dup cmdfile="$TMPDIR/dup.cmd" log="$TMPDIR/dup.log"
   fi
 
   if [ $? -ne 0 ]

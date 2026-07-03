@@ -10,4 +10,4 @@ sqlplus  / as sysdba <<EOF
 recover managed standby database using current logfile disconnect;
 select open_mode, database_role from v\$database;
 EOF
-cd ../dgmonitor/; sh ./checkscn.sh
+cd dgmonitor; sh ./checkscn.sh

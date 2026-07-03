@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
 
 setup() {
-  load ../lib/bsfl.sh
-  load ../lib/ext_bsfl.sh
+  load "$BATS_TEST_DIRNAME/../src/lib/bsfl.sh"
+  load "$BATS_TEST_DIRNAME/../src/lib/ext_bsfl.sh"
 }
 #load ../lib/bsfl.sh
 
 @test "test_directory_exist_fun_should_ok" {
-  run directory_exists "/home/nome/autodg"
+  run directory_exists "$BATS_TEST_DIRNAME/.."
   [ "$output" == ''  ]
 
 }

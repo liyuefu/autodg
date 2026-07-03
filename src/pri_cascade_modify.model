@@ -1,0 +1,9 @@
+--alter system set db_unique_name='primarydb' scope=spfile;
+alter system set log_archive_config='dg_config=(primarydb,dataguarddb)' scope=both sid='*';
+alter system set prilogarchivedest='service=dataguarddb lgwr async valid_for=(standby_logfiles,standby_role) db_unique_name=dataguarddb' scope=both sid='*';
+alter system set prilogarchivedeststate=enable scope=both sid='*';
+alter system set log_archive_max_processes=4 scope=both sid='*';
+alter system set fal_server='dataguarddb' scope=both sid='*';
+alter system set fal_client='primarydb' scope=both sid='*';
+alter system set standby_file_management = auto scope=both sid='*';
+

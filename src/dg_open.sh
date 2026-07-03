@@ -17,8 +17,8 @@ sleep 10
 msg_info "Standby alter database open read only"
 msg_info "Standby alter database recover managed standby database..."
 msg_info "Standby select max sequence "
-if [ $DUPLICATE_ACTIVE = "yes" ]; then
-$ORACLE_HOME/bin/sqlplus -s / as sysdba >> $LOG_FILE <<EOF
+if [ "$DUPLICATE_ACTIVE" = "yes" ]; then
+"$ORACLE_HOME/bin/sqlplus" -s / as sysdba >> "$LOG_FILE" <<EOF
 select sequence#,applied from v\$archived_log;
 host sleep 10
 alter database open read only;
@@ -29,7 +29,7 @@ select open_mode,database_role from v\$database;
 exit;
 EOF
 else
-$ORACLE_HOME/bin/sqlplus -s / as sysdba >> $LOG_FILE <<EOF
+"$ORACLE_HOME/bin/sqlplus" -s / as sysdba >> "$LOG_FILE" <<EOF
 start dg_crt_standbylog.sql;
 alter database recover managed standby database using current logfile disconnect from session;
 select max(sequence#) from v\$archived_log;

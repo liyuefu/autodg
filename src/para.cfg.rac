@@ -1,13 +1,15 @@
 oracle_sid=ctp1
 oracle_dg_sid=ctp1
 #如果已经有配置了dg,比如配置了2个dg,把db_unique_name写这里,没有就保持no
-exist_dg_unique_name_list=ctpdg
-#exist_dg_unique_name_list=no
+#exist_dg_unique_name_list=ctpdg
+exist_dg_unique_name_list=no
 
+#是否配置dg级联（如果当前库是dg库，那么是级联）
+set_cascade=no
 #指定主库使用哪个dest
-pri_log_archive_dest=2
+pri_log_archive_dest=3
 #指定备库使用哪个dest
-dg_log_archive_dest=2
+dg_log_archive_dest=3
 dg_unique_name=ctpdgrac
 oracle_base_pr=/u01/app/oracle
 oracle_home_pr=/u01/app/oracle/product/11.2.0/dbhome_1
@@ -18,9 +20,9 @@ dgarch=+datadg
 dgomf=yes
 #dgomf, yes: set db_create_file_dest value to $dgpath , dg will use OMF, no: no set db_create_file_dest.
 #如果主库使用OMF,比如rac或者单实例ASM, 备库建议也使用OMF.如果备库是+data,那么肯定要使用OMF,即设置yes.
-#源端和目标端都是rac时,搭建时使用public ip. 搭建顺利完成后可以考虑改为scan ip
-ippr=192.168.56.191
-ipdg=192.168.56.201
+#源端和目标端都是rac时,搭建时使用vip. 搭建完成,可以在连接符加入2个vip. 注意，绝对不要使用scan ip,可能有12514错误， Doc ID 563801.1
+ippr=192.168.56.75
+ipdg=192.168.56.202
 stagepr=/stage
 stagedg=/stage
 duplicate_active=yes
@@ -28,6 +30,7 @@ fix_datafile_same_name=no
 rman_backup_dir=/u02/rmanbackup
 syspwd=oracle
 setupssh=no
+ssh_port=22
 #fix_datafile_same_name=yes, 用%U统一命名./u03/oradata/ctp/data_D-CTP_TS-SYSTEM_FNO-1; no: 用原来的名字
 #如果文件有重名的,设置为yes
 #duplicate_active: yes(直接用duplicate from active命令从主库duplicate), no(用现有的rman备份也用duplicate命令, rman必须已经复制到备库),

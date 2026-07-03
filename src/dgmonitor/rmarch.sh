@@ -3,6 +3,7 @@
 #rman delete sysdate-1
 #find delete ctime + 7
 #update: 2023.07.18
+#update: 2025.09.17. 去掉force,否则没有apply的也强制删除。
 
 source ~/.bash_profile
 
@@ -15,7 +16,7 @@ export DATE=`date +%Y-%m-%d`
 export LOGFILE=$ARCHDIR/logs/rm_arch_`date +%Y-%m-%d-%H%M`.log
 export CMDFILE=/tmp/fullbak.rcv
 if [ ! -d $ARCHDIR/logs ]; then
-    mkdir $ARCHDIR/logs
+    mkdir -p $ARCHDIR/logs
 fi
 cat > $CMDFILE <<EOF
 connect target /
@@ -29,7 +30,7 @@ allocate channel ch03 device type disk;
 
 
 crosscheck archivelog all;
-delete noprompt force archivelog all completed before 'sysdate-1' ;
+delete noprompt  archivelog all completed before 'sysdate-1' ;
 release channel ch00;
 release channel ch01;
 release channel ch02;
